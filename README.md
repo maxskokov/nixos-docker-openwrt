@@ -1,5 +1,6 @@
 # nixos-docker-openwrt
 # Declarative OpenWrt LuCI Router Container for NixOS Environments
+<img width="1914" height="1011" alt="image" src="https://github.com/user-attachments/assets/a60cab28-f4ac-48ad-8c1a-a7e7a6969666" />
 
 An optimized, production-ready configuration designed to deploy a virtual OpenWrt 24.10 router with a stable LuCI graphical web interface inside a Docker container on modern Linux hosts, specifically tailored for NixOS deployments.
 
