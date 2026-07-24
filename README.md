@@ -25,8 +25,10 @@ docker run -d -t \
   --network host \
   --privileged \
   --restart always \
-  maxskokov/nixos-openwrt-luci:24.10
+  ghcr.io/maxskokov/nixos-docker-openwrt:24.10
 ```
+
+`ghcr.io/maxskokov/nixos-docker-openwrt` is the image published by CI on every push to `main`. The Docker Hub tag `maxskokov/nixos-openwrt-luci:24.10` is an older manual release and is not updated by the pipeline.
 
 With Compose:
 
@@ -38,7 +40,26 @@ Open http://localhost. Log in as `root` with an empty password.
 
 ## Privileged and host networking
 
-procd and netifd manage interfaces over netlink, and ubus reads the host network stack for telemetry. Both require `--privileged` and `--network host`. This is a lab container. Do not expose it to an untrusted network. A hardened variant drops `--privileged` for the `NET_ADMIN` and `NET_RAW` capabilities at the cost of some telemetry.
+procd and netifd manage interfaces over netlink, and ubus reads the host network stack for telemetry. Both require `--privileged` and `--network host`. This is a lab container. Do not expose it to an untrusted network. `docker-compose.yml` includes a commented capability-based block (`NET_ADMIN`, `NET_RAW`) as an untested starting point for dropping `--privileged`; procd and netifd may need more than that, so treat it as a direction, not a drop-in.
+
+## NixOS
+
+The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`.
+
+```nix
+{
+  inputs.openwrt-router.url = "github:maxskokov/nixos-docker-openwrt";
+
+  outputs = { nixpkgs, openwrt-router, ... }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      modules = [
+        openwrt-router.nixosModules.default
+        { services.openwrt-router.enable = true; }
+      ];
+    };
+  };
+}
+```
 
 ## Build
 

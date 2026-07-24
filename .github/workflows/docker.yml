@@ -20,14 +20,6 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Derive tags
         id: meta
         uses: docker/metadata-action@v5
@@ -38,12 +30,46 @@ jobs:
             type=ref,event=tag
             type=sha
 
-      - name: Build and push
+      - name: Build and load image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          image=ghcr.io/${{ github.repository }}:24.10
+          docker run -d -t --name smoke --network host --privileged "$image"
+          ok=
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ || true)
+            echo "attempt $i: HTTP $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 3
+          done
+          echo "--- container logs ---"
+          docker logs smoke 2>&1 | tail -20
+          docker rm -f smoke
+          if [ -z "$ok" ]; then
+            echo "LuCI did not return HTTP 200"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
+            [ -n "$tag" ] && docker push "$tag"
+          done
