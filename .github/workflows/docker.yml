@@ -10,6 +10,7 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -43,19 +44,25 @@ jobs:
       - name: Smoke test
         run: |
           image=ghcr.io/${{ github.repository }}:24.10
-          docker run -d -t --name smoke --network host --privileged "$image"
+          # Isolated bridge network so OpenWrt's firewall stays inside the
+          # container and never touches the runner. Probe LuCI over the
+          # container's own loopback via `docker exec`.
+          docker run -d -t --name smoke --privileged "$image"
           ok=
           for i in $(seq 1 20); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ || true)
-            echo "attempt $i: HTTP $code"
-            if [ "$code" = "200" ]; then ok=1; break; fi
+            if docker exec smoke wget -q -O /dev/null http://127.0.0.1/ 2>/dev/null; then
+              ok=1
+              echo "attempt $i: LuCI responded"
+              break
+            fi
+            echo "attempt $i: not ready"
             sleep 3
           done
           echo "--- container logs ---"
           docker logs smoke 2>&1 | tail -20
           docker rm -f smoke
           if [ -z "$ok" ]; then
-            echo "LuCI did not return HTTP 200"
+            echo "LuCI did not respond on http://127.0.0.1/"
             exit 1
           fi
 
