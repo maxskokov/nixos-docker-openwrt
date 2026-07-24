@@ -42,6 +42,22 @@ Open http://localhost. Log in as `root` with an empty password.
 
 procd and netifd manage interfaces over netlink, and ubus reads the host network stack for telemetry. Both require `--privileged` and `--network host`. This is a lab container. Do not expose it to an untrusted network. `docker-compose.yml` includes a commented capability-based block (`NET_ADMIN`, `NET_RAW`) as an untested starting point for dropping `--privileged`; procd and netifd may need more than that, so treat it as a direction, not a drop-in.
 
+## Host safety (known issue)
+
+`--privileged` also exposes the host `/dev/watchdog`. procd opens and arms it (on AMD platforms the `sp5100_tco` hardware watchdog, 60s heartbeat) as it would on a real router, and on container stop it closes the device without disarming. The host then reboots when the timer next expires, which shows up as spontaneous reboots with:
+
+```
+x86/amd: Previous system reset reason: hardware watchdog timer expired
+kernel: watchdog: watchdog0: watchdog did not stop!
+```
+
+Mitigations:
+
+- Run this container on disposable infrastructure (a throwaway VM or CI runner), not a machine you care about.
+- Keep the host watchdog from being armed. On NixOS: `boot.blacklistedKernelModules = [ "sp5100_tco" ];` (the module name depends on the chipset), then rebuild and reboot.
+
+This is inherent to `--privileged` combined with a full init, and is the concrete reason the capability-based variant above is worth pursuing.
+
 ## NixOS
 
 The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`. The module sets the container backend to `docker` (the nixpkgs default is podman); enable `virtualisation.docker.enable = true` on the host.
