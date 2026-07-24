@@ -44,7 +44,7 @@ procd and netifd manage interfaces over netlink, and ubus reads the host network
 
 ## NixOS
 
-The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`.
+The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`. The module sets the container backend to `docker` (the nixpkgs default is podman); enable `virtualisation.docker.enable = true` on the host.
 
 ```nix
 {
@@ -67,7 +67,9 @@ The flake exposes a NixOS module that runs the container declaratively through `
 docker build -t nixos-openwrt-luci:24.10 .
 ```
 
-CI builds the image on every push and pull request and publishes tagged images to GHCR. See [.github/workflows/docker.yml](.github/workflows/docker.yml).
+CI builds and smoke-tests the image on every push and pull request, and publishes to GHCR only on pushes to `main` and tags. See [.github/workflows/docker.yml](.github/workflows/docker.yml).
+
+The image is not bit-reproducible: the base is a mutable tag and `opkg install` pulls whatever the feeds serve at build time. Immutable references are available through the `type=sha` image tags produced by CI. Pinning the base by `@sha256:` digest is left as a follow-up.
 
 ## Upstream
 

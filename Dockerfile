@@ -10,7 +10,7 @@ RUN mkdir -p /var/lock /var/run \
  && sed -i '/kmods/d' /etc/opkg/distfeeds.conf \
  && opkg update \
  && opkg install luci \
- && rm -rf /var/opkg-lists/* /tmp/opkg-lists/* 2>/dev/null || true
+ && { rm -rf /var/opkg-lists/* /tmp/opkg-lists/* 2>/dev/null || true; }
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1

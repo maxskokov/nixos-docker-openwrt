@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -44,8 +48,8 @@ jobs:
       - name: Smoke test
         run: |
           image=ghcr.io/${{ github.repository }}:24.10
-          # Isolated bridge network so OpenWrt's firewall stays inside the
-          # container and never touches the runner. Probe LuCI over the
+          # Default bridge network (no --network host): OpenWrt's firewall stays
+          # inside the container and never touches the runner. Probe over the
           # container's own loopback via `docker exec`.
           docker run -d -t --name smoke --privileged "$image"
           ok=
@@ -58,11 +62,17 @@ jobs:
             echo "attempt $i: not ready"
             sleep 3
           done
+          # The point of this image is that procd brings ubus up; assert it,
+          # since the LuCI login page renders even when telemetry is dead.
+          if [ -n "$ok" ] && ! docker exec smoke ubus call system board; then
+            echo "ubus is not available"
+            ok=
+          fi
           echo "--- container logs ---"
           docker logs smoke 2>&1 | tail -20
           docker rm -f smoke
           if [ -z "$ok" ]; then
-            echo "LuCI did not respond on http://127.0.0.1/"
+            echo "smoke test failed: LuCI unreachable or ubus dead"
             exit 1
           fi
 
@@ -76,7 +86,4 @@ jobs:
 
       - name: Push image
         if: github.event_name != 'pull_request'
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            [ -n "$tag" ] && docker push "$tag"
-          done
+        run: printf '%s\n' "${{ steps.meta.outputs.tags }}" | xargs -r -n1 docker push
