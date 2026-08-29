@@ -20,6 +20,15 @@
         config = lib.mkIf cfg.enable {
           # Default backend is podman; the image is documented against docker.
           virtualisation.oci-containers.backend = lib.mkDefault "docker";
+
+          # oci-containers does not pull in the backend daemon itself. Without
+          # this, importing the module on an otherwise clean host produces a
+          # systemd unit that invokes a docker binary which is not installed.
+          # Left alone if the backend has been overridden to podman.
+          virtualisation.docker.enable =
+            lib.mkIf (config.virtualisation.oci-containers.backend == "docker")
+              (lib.mkDefault true);
+
           virtualisation.oci-containers.containers.openwrt-router = {
             image = cfg.image;
             extraOptions = [ "--network=host" "--privileged" "--tty" ];

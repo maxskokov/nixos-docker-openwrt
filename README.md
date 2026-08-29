@@ -60,7 +60,7 @@ This is inherent to `--privileged` combined with a full init, and is the concret
 
 ## NixOS
 
-The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`. The module sets the container backend to `docker` (the nixpkgs default is podman); enable `virtualisation.docker.enable = true` on the host.
+The flake exposes a NixOS module that runs the container declaratively through `virtualisation.oci-containers`, so the host never runs an imperative `docker run`. The module sets the container backend to `docker` (the nixpkgs default is podman) and enables the docker daemon itself, so importing it is enough on an otherwise clean host. Override the backend to podman and the module leaves the docker daemon alone.
 
 ```nix
 {
