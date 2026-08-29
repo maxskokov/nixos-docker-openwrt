@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM docker.io/openwrt/rootfs:x86-64-openwrt-24.10
+FROM docker.io/openwrt/rootfs:x86-64-24.10.8@sha256:9972a4b4747cd136abd597475d7b88c51a49fd849d0d53f069a2f4bf446061b9
 
 LABEL org.opencontainers.image.title="nixos-docker-openwrt" \
       org.opencontainers.image.description="OpenWrt 24.10 with LuCI in a container running procd/ubus for live telemetry" \

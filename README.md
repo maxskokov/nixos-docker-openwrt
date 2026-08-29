@@ -15,7 +15,7 @@ LuCI crashed on page load with `left-hand side expression is null` in `runtime.u
 
 Telemetry needs a live ubus. Running `uhttpd` directly serves the login page but exposes no system state. Booting `/sbin/init` starts procd and netifd, so interface stats and traffic graphs work.
 
-This image pins OpenWrt 24.10 with LuCI and uses `/sbin/init` as the entrypoint.
+This image pins OpenWrt 24.10.8 with LuCI and uses `/sbin/init` as the entrypoint.
 
 ## Usage
 
@@ -85,12 +85,14 @@ docker build -t nixos-openwrt-luci:24.10 .
 
 CI builds and smoke-tests the image on every push and pull request, and publishes to GHCR only on pushes to `main` and tags. See [.github/workflows/docker.yml](.github/workflows/docker.yml).
 
-The image is not bit-reproducible: the base is a mutable tag and `opkg install` pulls whatever the feeds serve at build time. Immutable references are available through the `type=sha` image tags produced by CI. Pinning the base by `@sha256:` digest is left as a follow-up.
+The base is pinned by `@sha256:` digest, so every rebuild starts from an identical rootfs. The image is still not bit-reproducible, because `opkg install` pulls whatever the feeds serve at build time. Immutable references to the published image are available through the `type=sha` tags produced by CI.
+
+The base is a *version* tag (`x86-64-24.10.8`), not a branch tag. Branch tags such as `x86-64-openwrt-24.10` are refreshed only by the upstream scheduled rebuild, which last published on 2025-12-14 and is currently failing ([openwrt/docker#211](https://github.com/openwrt/docker/issues/211)). Following a branch tag therefore freezes the base silently, which is how this image sat eight months behind without any visible signal.
 
 ## Upstream
 
 - [openwrt/luci#8739](https://github.com/openwrt/luci/pull/8739): fix LuCI crash on null board info in containers
-- [openwrt/docker#205](https://github.com/openwrt/docker/pull/205): drop the dangling `/etc/resolv.conf` symlink that breaks `RUN` on older buildkit
+- [openwrt/docker#205](https://github.com/openwrt/docker/pull/205): drop the dangling `/etc/resolv.conf` symlink that breaks `RUN` on older buildkit. Merged 2026-08-17, but not yet in any published image: the pinned 24.10.8 rootfs was built on 2026-07-24 and still ships `etc/resolv.conf -> /tmp/resolv.conf`, and upstream image publishing has been broken since ([openwrt/docker#211](https://github.com/openwrt/docker/issues/211)).
 
 ## License
 
